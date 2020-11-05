@@ -6,6 +6,8 @@ library(plyr)
 library(reshape2)
 library(pbapply)
 
+##Draw  DATA save in Figure_5.Rdata
+
 ##Fig5_AB Examples
 setwd("~/phenotypic_heterogeneity/")
 load("./Original_Data/Original.Rdata")
@@ -181,175 +183,200 @@ Fig5_B<-Draw_Pot%>%
 
 ##Fig5_CD
 
-##Real value
-load("~/phenotypic_heterogeneity/Fig_5_Results/Fig5CD.Rdata")
+##get exp zscore and drug zscore
+dfDrugAct <- exprs(getAct(rcellminerData::drugData)) %>% as.data.frame();
+molData <- getMolDataMatrices();
+expGenes <- removeMolDataType(rownames(molData[["exp"]]));
+dfExpr <- molData[["exp"]][names(expGenes),] %>% as.data.frame()
+rownames(dfExpr) <- expGenes;
+dfExpr$gene <- expGenes;
 
-TCap<-Capacitors%>%
-  dplyr::mutate(Real_P=p.adjust(Pva_G,method = "BH"))%>%
-  dplyr::filter(.,Real_P < 0.05)
+##gene
+hsStab <- Homology_Cap$Human.gene.name %>% as.character(); ## stabilizer
+hsDiver <- Homology_Pot$Human.gene.name %>% as.character(); ## diversifier
 
-nrow(TCap)/42
+hsDiver.withExpr <- intersect(hsDiver,dfExpr$gene);
+dfExpr.diver <- dfExpr %>%
+  filter(gene %in% hsDiver.withExpr) %>%
+  melt(id.vars="gene") %>%
+  group_by(gene) %>%
+  plyr::rename(c("variable" = "cell", "value"="exp"));
 
+hsStab.withExpr <- intersect(hsStab,dfExpr$gene);
+dfExpr.stab <- dfExpr %>%
+  filter(gene %in% hsStab.withExpr) %>%
+  melt(id.vars="gene") %>%
+  group_by(gene) %>%
+  plyr::rename(c("variable" = "cell", "value"="exp"));
 
-TGen<-Potentiators%>%
-  dplyr::mutate(Real_P=p.adjust(Pva_L,method = "BH"))%>%
-  dplyr::filter(.,Real_P < 0.05)
-
-nrow(TGen)/28
-
-
-
-
-###Sample from all human genes
-
-library(rcellminer)
-library(rcellminerData)
-library(dplyr)
-library(parallel)
-library(plyr)
-library(reshape2)
-
-##get exp zscore and drug zsocre
-drugAct <- exprs(getAct(rcellminerData::drugData))
-molData <- getMolDataMatrices()
-expGenes <- removeMolDataType(rownames(molData[["exp"]]))
-lapply(1:1000, function(P){
-  
-  HOMOCap<-sample(expGenes,42,replace = F)
-  HOMOPot<-sample(expGenes,28,replace = F)
-  
-  PotLabels <- paste0("exp", HOMOPot)
-  PotEXP_28 <- molData[["exp"]][PotLabels,]%>%as.data.frame()
-  PotEXP_28$Gene<-row.names(PotEXP_28)
-  
-  CapLabels <- paste0("exp", HOMOCap)
-  CapEXP_42 <- molData[["exp"]][CapLabels,]%>%as.data.frame()
-  CapEXP_42$Gene<-row.names(CapEXP_42)
-  
-  ## Each random sample
-  Sam_Potentiator<-mclapply(1:21121, function(k){
-    gc()
-    drugnsc<-row.names(drugAct)
-    Onedrug<-drugAct[drugnsc[k],]%>%as.data.frame()
-    names(Onedrug)<-drugnsc[k]
-    Onedrug$Cellline<-row.names(Onedrug)
+dfObs <- mclapply(
+  rownames(dfDrugAct),
+  mc.cores = 90,
+  #mc.preschedule = F,
+  function(thisDrug){
+    myDrugAct <- t(dfDrugAct[thisDrug,]) %>% as.data.frame;
+    colnames(myDrugAct) <- "act";
+    myDrugAct$cell <- rownames(myDrugAct);
+    myHiVsLow.diver <- myDrugAct %>%
+      merge(dfExpr.diver,by=c("cell")) %>%
+      group_by(gene) %>%
+      do({
+        myDf <- .;
+        medExp <- myDf$exp %>% median(na.rm=T);
+        data.frame(lowExp_LC50 = mean(myDf$act[myDf$exp < medExp],na.rm=T),
+                   hiExp_LC50 = mean(myDf$act[myDf$exp > medExp],na.rm=T));
+      });
+    rawP.diver <- wilcox.test(myHiVsLow.diver$lowExp_LC50,
+                              myHiVsLow.diver$hiExp_LC50,
+                              paired=T,
+                              alternative = "greater")$p.value;
     
+    myHiVsLow.stab <- myDrugAct %>%
+      merge(dfExpr.stab,by=c("cell")) %>%
+      group_by(gene) %>%
+      do({
+        myDf <- .;
+        medExp <- myDf$exp %>% median(na.rm=T);
+        data.frame(lowExp_LC50 = mean(myDf$act[myDf$exp < medExp],na.rm=T),
+                   hiExp_LC50 = mean(myDf$act[myDf$exp > medExp],na.rm=T));
+      });
+    rawP.stab <- wilcox.test(myHiVsLow.stab$lowExp_LC50,
+                             myHiVsLow.stab$hiExp_LC50,
+                             paired=T,
+                             alternative = "less")$p.value;
     
-    Gene28DATA<-lapply(1:28, function(i){
-      OneGe<-PotEXP_28[i,]
-      OneGene<-melt(OneGe,id.var="Gene")
-      OneGene<-na.omit(OneGene)
-      OneGene$ExpType <- ifelse(OneGene$value <  quantile(OneGene$value,p=c(0.5)), "low", 
-                                ifelse(OneGene$value > quantile(OneGene$value,p=c(0.5)), "high", NA))
-      HIGH_Cell<-filter(OneGene,ExpType=="high")
-      LOW_Cell<-filter(OneGene,ExpType=="low")
-      H_act<-filter(Onedrug,Cellline %in% HIGH_Cell$variable)
-      L_act<-filter(Onedrug,Cellline %in% LOW_Cell$variable)
-      HAC<-mean(na.omit(H_act[,1]))
-      LAC<-mean(na.omit(L_act[,1]))
-      new<-data.frame(Gene=PotEXP_28$Gene[i],drug=drugnsc[k],H_ACT=HAC,L_ACT=LAC)
-      return(new)
-    })%>%rbind.fill()
-    
-    Test_G<-wilcox.test(Gene28DATA$H_ACT,Gene28DATA$L_ACT,alternative = "greater",paired = T)
-    Test_L<-wilcox.test(Gene28DATA$H_ACT,Gene28DATA$L_ACT,alternative = "less",paired = T)
-    Gene28DATA$Pva_G=Test_G$p.value
-    Gene28DATA$Pva_L=Test_L$p.value
-    
-    return(Gene28DATA)
-    
-  },mc.cores = 10)%>%rbind.fill()
-  
-  Sam_Capacitor<-mclapply(1:21121, function(k){
-    gc()
-    drugnsc<-row.names(drugAct)
-    Onedrug<-drugAct[drugnsc[k],]%>%as.data.frame()
-    names(Onedrug)<-drugnsc[k]
-    Onedrug$Cellline<-row.names(Onedrug)
-    
-    
-    Gene42DATA<-lapply(1:42, function(i){
-      OneGe<-CapEXP_42[i,]
-      OneGene<-melt(OneGe,id.var="Gene")
-      OneGene<-na.omit(OneGene)
-      OneGene$ExpType <- ifelse(OneGene$value <  quantile(OneGene$value,p=c(0.5)), "low", 
-                                ifelse(OneGene$value > quantile(OneGene$value,p=c(0.5)), "high", NA))
-      HIGH_Cell<-filter(OneGene,ExpType=="high")
-      LOW_Cell<-filter(OneGene,ExpType=="low")
-      H_act<-filter(Onedrug,Cellline %in% HIGH_Cell$variable)
-      L_act<-filter(Onedrug,Cellline %in% LOW_Cell$variable)
-      HAC<-mean(na.omit(H_act[,1]))
-      LAC<-mean(na.omit(L_act[,1]))
-      new<-data.frame(Gene=CapEXP_42$Gene[i],drug=drugnsc[k],H_ACT=HAC,L_ACT=LAC)
-      return(new)
-    })%>%rbind.fill()
-    
-    
-    Test_G<-wilcox.test(Gene42DATA$H_ACT,Gene42DATA$L_ACT,alternative = "greater",paired = T)
-    Test_L<-wilcox.test(Gene42DATA$H_ACT,Gene42DATA$L_ACT,alternative = "less",paired = T)
-    Gene42DATA$Pva_G=Test_G$p.value
-    Gene42DATA$Pva_L=Test_L$p.value
-    
-    return(Gene42DATA)
-    
-  },mc.cores = 10)%>%rbind.fill()
-  
-  save(Sam_Capacitor,Sam_Potentiator,file =paste("~/phenotypic_heterogeneity/Fig_5_Results/Pair_whole_Gene_in ALL/","Sample_",P,"_NCI60.Rdata",sep = ""))
-  
-})
+    data.frame(drug = thisDrug, diverP = rawP.diver, stabP = rawP.stab) %>%
+      return();
+  }) %>% rbind.fill();
+
+dfObs %>%
+  filter(p.adjust(diverP,method="bonferroni") < 0.05) %>%
+  dim() ## 11
+dfObs %>%
+  filter(p.adjust(stabP,method="bonferroni") < 0.05) %>%
+  dim() ## 61
 
 
+##
+## randomly sample the same number of genes as a group, as a control
+##
+nRand <- 1000;
+dfMock <- mclapply(
+  rownames(dfDrugAct),
+  mc.cores = 90,
+  #mc.preschedule = F,
+  function(thisDrug){
+    myDrugAct <- t(dfDrugAct[thisDrug,]) %>% as.data.frame;
+    colnames(myDrugAct) <- "act";
+    myDrugAct$cell <- rownames(myDrugAct);
+    
+    myRes.mock <- lapply(1:nRand,function(thisR){
+      myDiver.mock <- sample(dfExpr$gene,length(hsDiver.withExpr));
+      myStab.mock <- sample(dfExpr$gene,length(hsStab.withExpr));
+      
+      myHiVsLow.diver <- dfExpr %>%
+        filter(gene %in% myDiver.mock) %>%
+        melt(id.vars="gene") %>%
+        group_by(gene) %>%
+        plyr::rename(c("variable" = "cell", "value"="exp")) %>%
+        merge(myDrugAct,by="cell") %>%
+        group_by(gene) %>%
+        do({
+          myDf <- .;
+          medExp <- myDf$exp %>% median(na.rm=T);
+          data.frame(lowExp_LC50 = mean(myDf$act[myDf$exp < medExp],na.rm=T),
+                     hiExp_LC50 = mean(myDf$act[myDf$exp > medExp],na.rm=T));
+        });
+      rawP.diver <- wilcox.test(myHiVsLow.diver$lowExp_LC50,
+                                myHiVsLow.diver$hiExp_LC50,
+                                paired=T,
+                                alternative = "greater")$p.value;
+      
+      myHiVsLow.stab <- dfExpr %>%
+        filter(gene %in% myStab.mock) %>%
+        melt(id.vars="gene") %>%
+        group_by(gene) %>%
+        plyr::rename(c("variable" = "cell", "value"="exp")) %>%
+        merge(myDrugAct,by="cell") %>%
+        group_by(gene) %>%
+        do({
+          myDf <- .;
+          medExp <- myDf$exp %>% median(na.rm=T);
+          data.frame(lowExp_LC50 = mean(myDf$act[myDf$exp < medExp],na.rm=T),
+                     hiExp_LC50 = mean(myDf$act[myDf$exp > medExp],na.rm=T));
+        });
+      rawP.stab <- wilcox.test(myHiVsLow.stab$lowExp_LC50,
+                               myHiVsLow.stab$hiExp_LC50,
+                               paired=T,
+                               alternative = "less")$p.value;
+      
+      data.frame(drug = thisDrug, diverP = rawP.diver, stabP = rawP.stab, rand=thisR) %>%
+        return();
+    }) %>% rbind.fill();
+    return(myRes.mock);
+  }) %>% rbind.fill();
 
+## raw P value
+dfObs %>%
+  filter(stabP < 0.05) %>%
+  dim() ## 8803
+dfObs %>%
+  filter(diverP < 0.05) %>%
+  dim() ## 2707
 
+dfMock %>%
+  group_by(rand) %>%
+  filter(stabP < 0.05) %>%
+  dplyr::summarise(nDrugEnhanced = length(drug)) %>%
+  ungroup() %>%
+  dplyr::summarise(mean(nDrugEnhanced,na.rm=T),
+                   max(nDrugEnhanced,na.rm=T))
+## mean = 2070, max = 2161
 
-##drwa Figure 5 CD
-##load data :sample from all human genes
-setwd("~/phenotypic_heterogeneity/Fig_5_Results/Pair_whole_Gene_in ALL/")
-Allfile<-list.files("./")
+dfMock %>%
+  group_by(rand) %>%
+  filter(diverP < 0.05) %>%
+  dplyr::summarise(nDrugWeakened = length(drug)) %>%
+  ungroup() %>%
+  dplyr::summarise(mean(nDrugWeakened,na.rm=T),
+                   max(nDrugWeakened,na.rm=T))
+## mean = 933, max = 1012
 
-Sam_ALL<-mclapply(1:length(Allfile), function(k){
-  
-  load(Allfile[k])
-  
-  Num_Cap<-Sam_Capacitor%>%
-    dplyr::mutate(NC=p.adjust(Pva_G,method = "BH"))%>%
-    dplyr::filter(.,NC<0.05)%>%
-    dplyr::summarise(Time=k,Number=length(NC)/42,type="Cap")
-  
-  Num_Pot<-Sam_Potentiator%>% 
-    dplyr::mutate(NP=p.adjust(Pva_L,method = "BH"))%>%
-    dplyr::filter(.,NP<0.05)%>%
-    dplyr::summarise(Time=k,Number=length(NP)/28,type="Pot")
-  
-  new<-rbind(Num_Cap,Num_Pot)
-  
-},mc.cores = 20)%>%rbind.fill()
-
-
-Fig5_C<-Sam_ALL%>%
-  filter(.,type=="Cap")%>%
-  ggplot(aes(x=,Number))+
-  scale_x_continuous(limits = c(0,6300),breaks = seq(0,6300,1000))+
-  stat_bin(aes(y=..count../sum(..count..)),bins = 30,geom="step")+
-  annotate("segment", x = 6238, xend = 6238, y =0.2,color="#F8766D", yend =0.005,size=0.5,arrow=arrow())+
-  annotate("text", x =5800, y =0.24,label="Observed= 6238")+
-  xlab("Number of drugs enhanced by stabilizer")+
-  annotate("text",x=1000,y=0.9,parse = TRUE,label= " ~ italic(P) < 10^-3")+
+## plot for Fig5 C/D
+toPlot.5C <- dfMock %>%
+  group_by(rand) %>%
+  filter(stabP < 0.05) %>%
+  dplyr::summarise(nDrugEnhanced = length(drug)) %>%
+  ungroup() %>%
+  ggplot(aes(x = nDrugEnhanced)) +
+  stat_bin(aes(y=..count../sum(..count..)),bins = 150,geom="step") +
+  annotate("segment", x = 8803, xend = 8803,y=0.1,color="#F8766D", yend =0.01,size=0.5,arrow=arrow())+
+  annotate("text", x = 8000, y =0.12,label="Observed = 8803")+
+  xlab("Number of drugs enhanced by stabilizers")+
+  scale_x_continuous(limits = c(0,9000),)+
+  annotate("text",x=8000,y=0.3,parse = TRUE,label= " ~ italic(P)< 10^-3")+
   ylab("Frequency")
 
-
-Fig5_D<-Sam_ALL%>%
-  filter(.,type=="Pot" )%>%
-  ggplot(aes(x=,Number))+
-  scale_x_continuous(limits = c(0,840),breaks = seq(0,840,100))+
-  stat_bin(aes(y=..count../sum(..count..)),bins = 30,geom="step")+
-  annotate("segment", x = 823, xend = 823,y=0.2,color="#00BFC4", yend =0.005,size=0.5,arrow=arrow())+
-  annotate("text", x =780, y =0.24,label="Observed= 823")+
-  xlab("Number of drugs weakened by diversifier" )+
-  annotate("text",x=120,y=0.95,parse = TRUE,label= " ~ italic(P)< 10^-3")+
+toPlot.5D <- dfMock %>%
+  group_by(rand) %>%
+  filter(diverP < 0.05) %>%
+  dplyr::summarise(nDrugWeakened = length(drug)) %>%
+  ungroup() %>%
+  ggplot(aes(x = nDrugWeakened)) +
+  stat_bin(aes(y=..count../sum(..count..)),bins = 150,geom="step") +
+  annotate("segment", x = 2707, xend = 2707,y=0.1,color="#00BFC4", yend =0.01,size=0.5,arrow=arrow())+
+  annotate("text", x = 2600, y =0.12,label="Observed = 2707")+
+  xlab("Number of drugs weakened by diversifiers")+
+  scale_x_continuous(limits = c(0,3000),)+
+  annotate("text",x=2600,y=0.25,parse = TRUE,label= " ~ italic(P)< 10^-3")+
   ylab("Frequency")
 
 
 ##Draw  DATA save in Figure_5.Rdata
+save(Draw_Cap,Draw_Pot,Homology_Cap,Homology_Pot,
+     dfObs,toPlot.5C,toPlot.5D,
+     file = "~/phenotypic_heterogeneity/Fig_5_Results/Figure_5.Rdata")
+
+
 
 

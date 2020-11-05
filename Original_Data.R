@@ -15,7 +15,7 @@ df220Trait_4718Gene_DM<-df220Trait_4718Gene_CV_Mean%>%
 
 
 
-##2 Using Random sampling to identify phenotypic capacitor and potentiators
+##2 Using Random sampling to identify phenotypic stabilizers and diversifiers
 
 ##2.1 Randomly sampled data comes from wildtype
 ##2.2 Get Trait A in 4718 mutant genes
@@ -99,9 +99,8 @@ lapply(1:length(Traits), function(i){
   
 })
 
-
 ##2.7 To check the significance of DM 
-##2.8 To identify phenotypic capacitor and potentiators
+##2.8 To identify phenotypic stabilizers and diversifiers
 setwd("~/phenotypic_heterogeneity/Original_Data/DM.Results/Random_DM/")
 myfiles<-list.files()
 dfGene2Trait<-mclapply(1:220, function(i){
@@ -114,15 +113,15 @@ dfGene2Trait<-mclapply(1:220, function(i){
   
   Result_GeneType<-Pvalue_Data%>%
     dplyr::group_by(Trait,Gene)%>%
-    dplyr::summarise(Type=if_else(Rank==0.001,"potentiator",
-                                  ifelse(Rank >1-0.001,"capacitor","Other")))%>%
-    dplyr::filter(.,Type %in% c("capacitor","potentiator"))
+    dplyr::summarise(Type=if_else(Rank==0.001,"diversifiers",
+                                  ifelse(Rank >1-0.001,"stabilizers","Other")))%>%
+    dplyr::filter(.,Type %in% c("stabilizers","diversifiers"))
   
   return(Result_GeneType)                  
   
   
   
-},mc.cores=10)%>%rbind.fill()
+},mc.cores=30)%>%rbind.fill()
 
 
 
@@ -151,10 +150,10 @@ df70trait2Gene_NorDM<-dfCluster%>%
   dplyr::select(.,1,4,5)
 
 
-##5. At a FDR of 12%, we identified potentiators and capacitors with significantly lower and higher phenotypic potentials than expected
+##5. At a FDR of 12%, we identified stabilizers and diversifiers with significantly lower and higher phenotypic potentials than expected
 
-##5.1 capacitors
-
+##5.1 stabilizers
+load("~/phenotypic_heterogeneity/Original_Data/Original.Rdata")
 dfObs <- df70trait2Gene_NorDM %>%
   dplyr::group_by(Gene) %>%
   dplyr::summarise(obsPP = mean(sort(NorDM)[51:70]))
@@ -197,7 +196,7 @@ FDR<-min(which(dfRes$nTruePos/dfRes$nPos>=0.875))
 Capacitor<-filter(dfObs,obsPP > sort(dfRes$threshold)[FDR]) 
 
 
-##5.2 potentiators 
+##5.2 diversifiers
 
 dfObs_1 <- df70trait2Gene_NorDM %>%
   group_by(Gene) %>%

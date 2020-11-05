@@ -6,6 +6,8 @@ library(dplyr);
 library(scales);
 library(cowplot);
 
+##Draw  DATA save in Figure_2.Rdata
+
 setwd("~/phenotypic_heterogeneity/Fig_2_Results/")
 dfRawdm <- read.xlsx("./TabS1.rawDMs.xlsx",sheet=1,startRow=3);
 dfRoles <- read.xlsx("./TabS2.roles.xlsx",sheet=1,startRow=2);
@@ -141,6 +143,7 @@ plot.gene.effSize <- toPlot.effSize.dfLinks.eachGene %>%
   theme(legend.position=c(1,1),legend.justification=c(1,1),
         axis.text.x = element_text(angle = 45, hjust = 1))
 
-##Draw  DATA save in Figure_2.Rdata
 
+##Draw  DATA save in Figure_2.Rdata
+save(dfLinks,dfRawdm,dfRoles,plot.gene.effSize,plot.gene.nReg,plot.trait.effSize,plot.trait.nReg,file="~/phenotypic_heterogeneity/Fig_2_Results/Figure_2.Rdata")
 

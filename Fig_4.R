@@ -3,12 +3,17 @@ library(ggplot2)
 library(plyr)
 library(parallel)
 
-setwd("~/phenotypic_heterogeneity/")
-load("./Original_Data/Original.Rdata")
+##Draw  DATA save in Figure_4.Rdata
+
 
 #Fig4_A
+##A schematic diagram showing the different predictions for the “resource allocation” model versus the “division of labor” model.
+
+
+#Fig4_B
 #The correlation between number of traits capacitated by a gene and "Number of traits potentiated by the gene
 
+load("~/phenotypic_heterogeneity/Original_Data/Original.Rdata")
 # Number of Capacitor and Potentiator regulating a trait in 70 Traits
 Co_Gene<-union(Capacitor$Gene,Potentiator$Gene)
 
@@ -21,8 +26,8 @@ dfCapPot2Trait_Num<-dfGene2Trait%>%
 
 cor.test(dfCapPot2Trait_Num$numAsCap,dfCapPot2Trait_Num$numAsPot,method = "s")
 
-#draw Fig4_A
-Fig4_A<-dfCapPot2Trait_Num%>%
+#draw Fig4_B
+Fig4_B<-dfCapPot2Trait_Num%>%
   ggplot(aes(x=numAsPot,y=numAsCap))+
   geom_point(size=2,alpha=0.2)+
   geom_smooth(method = "lm",se=FALSE,color="red")+
@@ -31,9 +36,10 @@ Fig4_A<-dfCapPot2Trait_Num%>%
   annotate("text",x=15,y=20,parse = TRUE,label= "'ρ = -0.42,' ~ italic(P)<  ~10^-20")
 
 
-##Fig4_B GO analysis in dual roles genes
+##Fig4_D GO analysis in dual roles genes
 
-##Fig4_C Random sampling to test the negative correlation Fig4_A 
+
+##Fig4_C Random sampling to test the negative correlation Fig4_B 
 
 ##Fig4_C: 1. sample with regulatory relationship shuffled (70 Traits*484 Genes)
 Real_Gene2Trait_Num<-dfGene2Trait%>%
@@ -125,7 +131,7 @@ Rough_DM<-lapply(1:1000, function(i){
 })
 
 ##2.2 For each random DM of 220 traits X 4718 genes, the data of random sampling comes from wild type
-load("/mnt/data/home/moning/phenotypic_heterogeneity/Original_Data/WildType.Rdata")
+load("~/phenotypic_heterogeneity/Original_Data/WildType.Rdata")
 setwd("~/phenotypic_heterogeneity/Fig_4.Results/")
 
 ##2.3 sample from wild type 
@@ -229,14 +235,14 @@ Sam_dfGene2Traits<-mclapply(1:1000, function(k){
 
 ## 2.7 Using PAM to cluster the traits and chose 70 representative traits from the clusters.
 ##.2.8 At a FDR of 12%, identified potentiators and capacitors with significantly lower and higher phenotypic potentials than expected
-setwd("/mnt/data/home/moning/phenotypic_heterogeneity/Fig_4.Results/Sample with raw DM shuffled/")
+setwd("~/phenotypic_heterogeneity/Fig_4.Results/Sample with raw DM shuffled/")
 
 Sam_Correlation_1<-mclapply(1:1000, function(w){
   
   ##use random dm data  to cluster the traits with PAM 
   Each_Rough_DM<-Rough_DM[[q]]
- 
-   #get Sam_Result and Normalized RoughDM
+  
+  #get Sam_Result and Normalized RoughDM
   One_Sample_NorDM<-Each_Rough_DM%>%
     dplyr::mutate(NorDM=(RoughDM-mean(RoughDM))/sd(RoughDM))%>%
     dplyr::select(.,Trait,Gene,NorDM)
@@ -365,7 +371,6 @@ Sam_Correlation_1<-mclapply(1:1000, function(w){
 
 
 
-
 ##draw Fig4_C
 
 
@@ -383,11 +388,12 @@ Fig4_C<-Sam_Correlation%>%
                               "Samples with regulatory relationships shuffled"),
                      
                      values=c("black","#FF9933"))+
-  xlab("Pearson correlation coefficient")+
+  xlab("Spearman's correlation coefficient")+
   ylab("Frequency")
 
 
 ##Draw  DATA save in Figure_4.Rdata
+save(dfCapPot2Trait_Num,Sam_Correlation,Sam_Correlation_1,file = "~/phenotypic_heterogeneity/Fig_4_Results/Figure_4.Rdata")
 
 
 
