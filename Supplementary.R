@@ -280,9 +280,87 @@ FigureS4_B<-FigureS4_b%>%
   ylab("-log10 Pvalue")
 
 
+##load the 5% and 95% of the strains whose trait value was closest to the physical limit data
+load("~/phenotypic_heterogeneity/Original_Data/Physical_limit.Rdata")
+load("~/phenotypic_heterogeneity/Original_Data/Original.Rdata")
+
+## draw FigureS4_C
+## 4718 Gene x 70 Traits
+MedianDATA<-Physical_limit%>%
+  dplyr::group_by(Trait)%>%
+  dplyr::filter(.,!(DM %in% Inf ))%>%
+  dplyr::filter(Trait %in% unique(df70trait2Gene_NorDM$Trait))%>%
+  dplyr::group_by(Trait)%>%
+  arrange(physical_limit)%>%
+  dplyr::mutate(ID=1:length(physical_limit))%>%
+  dplyr::mutate(Type=ifelse(ID < 239.5, "5%", "95%"))%>% 
+  dplyr::mutate(wilcox=wilcox.test(DM ~ Type)$p.value,
+                Ttest=t.test(DM ~ Type)$p.value)%>%
+  dplyr::group_by(Trait,Type)%>%
+  dplyr::summarise(Median=median(DM),Average=mean(DM),
+                   wil_P=wilcox[1],
+                   Ttest_P=Ttest[1])%>%
+  dplyr::group_by(Trait)%>%
+  dplyr::mutate(Fold_W=Median[2]-Median[1],
+                Fold_T=Average[2]-Average[1],
+                TypeW=if_else(wil_P*70<0.05,"significant","not significant"),
+                TypeT=if_else(Ttest_P*70<0.05,"significant","not significant"))
+
+
+FigureS4_C<-MedianDATA%>%
+  dplyr::filter(Type %in% "5%")%>%
+  ggplot(aes(x=Fold_W,y=-log10(wil_P*70),color= TypeW))+
+  geom_point(size=2,shape=1)+
+  scale_x_continuous(limits = c(-0.2,0.2))+
+  scale_color_manual(name="Type",
+                     labels=c("not significant","significant"),
+                     values=c("grey","red"))+
+  xlab("The different of median")+
+  ylab("-log10 Pvalue")
+
+
+
+## draw FigureS4_D
+## 160  Potentiator Gene x 70 Traits
+
+
+MedianDATA2<-Physical_limit%>%
+  dplyr::group_by(Trait)%>%
+  dplyr::filter(Gene %in% Potentiator$Gene)%>%
+  dplyr::filter(Trait %in% unique(df70trait2Gene_NorDM$Trait))%>%
+  dplyr::group_by(Trait)%>%
+  arrange(physical_limit)%>%
+  dplyr::mutate(ID=1:length(physical_limit))%>%
+  dplyr::mutate(Type=ifelse(ID < 8, "5%", "95%"))%>% 
+  dplyr::mutate(wilcox=wilcox.test(DM ~ Type)$p.value,
+                Ttest=t.test(DM ~ Type)$p.value)%>%
+  dplyr::group_by(Trait,Type)%>%
+  dplyr::summarise(Median=median(DM),Average=mean(DM),
+                   wil_P=wilcox[1],
+                   Ttest_P=Ttest[1])%>%
+  dplyr::group_by(Trait)%>%
+  dplyr::mutate(Fold_W=Median[2]-Median[1],
+                Fold_T=Average[2]-Average[1],
+                TypeW=if_else(wil_P*70<0.05,"significant","not significant"),
+                TypeT=if_else(Ttest_P*70<0.05,"significant","not significant"))%>%as.data.frame()
+
+
+
+FigureS4_D<-MedianDATA2%>%
+  dplyr::filter(Type %in% "5%")%>%
+  ggplot(aes(x=Fold_W,y=-log10(wil_P),color= TypeW))+
+  geom_point(size=2,shape=1)+
+  scale_x_continuous(limits = c(-0.01,0.05))+
+  scale_color_manual(name="Type",
+                     labels=c("not significant","significant"),
+                     values=c("grey","red"))+
+  xlab("The different of median")+
+  ylab("-log10 Pvalue")
+
+
 ##Draw  DATA save in Supplementary.Rdata
 
 save(Cap_NumberDATA,df70trait2Gene_NorDM,Pot_NumberDATA,
-     PPI_DATA,S3C_Cap,S3C_Pot,Test_trait,Test_DATA,FigureS4_b,FigureS4_a,
+     PPI_DATA,S3C_Cap,S3C_Pot,Test_trait,Test_DATA,Physical_limit
      file = "~/phenotypic_heterogeneity/Supplementary/Supplementary.Rdata")  
 

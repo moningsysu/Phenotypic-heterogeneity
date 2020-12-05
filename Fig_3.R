@@ -132,25 +132,17 @@ cor.test(dfTrait2CapPot_TI$TI,dfTrait2CapPot_TI$numAsCap,method = "s")
 cor.test(dfTrait2CapPot_TI$TI,dfTrait2CapPot_TI$numAsPot,method = "s")
 
 ##draw Fig3_C
-toPlot.3c<-dfTrait2CapPot_TI%>%
-  dplyr::select(.,1,2,4)%>%
-  dplyr::mutate(New=cut(TI,breaks = quantile(TI,probs = seq(0,1,length.out = 10+1)),include.lowest=T))%>%
-  dplyr::mutate(Group_ID=c(rep(1,7),rep(2,7),rep(3,7),rep(4,7),rep(5,7),
-                           rep(6,7),rep(7,7),rep(8,7),rep(9,7),rep(10,7)))%>%
-  dplyr::group_by(Group_ID)%>%
-  dplyr::summarise(TI_Mean=mean(TI),Y_Mean=mean(numAsCap),
-                   Y_se=sd(numAsCap)/sqrt(length(TI)),
-                   Y_Max=Y_Mean+Y_se,Y_Min=Y_Mean-Y_se)
 
-Fig3_C<-toPlot.3c%>%
-  ggplot(aes(x=TI_Mean,y=Y_Mean))+
-  geom_errorbar(aes(ymin=Y_Min,ymax=Y_Max),width=.04)+
-  geom_point(color="#F8766D",size=2)+
-  xlab("Mean trait importance     ")+
-  ylab("Mean number of stabilizer")+
-  scale_y_continuous(limits=c(0,105))+
-  scale_x_continuous(breaks = seq(0,1,0.2))+
-  annotate("text",x=.5,y=100,parse = TRUE,label= "rho ~ ' = 0.35,' ~ italic(P) < ~10^-3")
+Fig3_C<-dfTrait2CapPot_TI%>%
+  dplyr::select(.,1,2,4)%>%
+  ggplot(aes(x=TI,y=numAsCap))+
+  geom_point(color="#F8766D",size=1.5)+
+  geom_smooth(method="lm",se = F,color="grey")+
+  xlab("Trait importance    ")+
+  ylab("Number of stabilizer")+
+  scale_x_log10()+
+  annotate("text",x=0.05,y=120,parse = TRUE,label= "rho ~ ' = 0.35,'")+
+  annotate("text",x=0.05,y=105,parse = TRUE,label= "~ italic(P) < ~10^-3")
 
 ## draw Fig3_D
 ## compare top/bottom 20 traits
@@ -163,11 +155,11 @@ nGene.cap.highTi <- dfTrait2CapPot_TI %>%
   getElement("numAsCap")
 wilcox.test(nGene.cap.lowTi,nGene.cap.highTi); # P = 0.02
 toPlot.3d <- data.frame(nGene = c(nGene.cap.lowTi,nGene.cap.highTi),
-                         type = ordered(
-                           rep(c("low","high"),
-                               c(length(nGene.cap.lowTi),length(nGene.cap.highTi)) ),
-
-                                                      levels=c("low","high")));
+                        type = ordered(
+                          rep(c("low","high"),
+                              c(length(nGene.cap.lowTi),length(nGene.cap.highTi)) ),
+                          
+                          levels=c("low","high")));
 
 Fig3_D<-toPlot.3d%>%
   dplyr::group_by(type)%>%
@@ -191,25 +183,16 @@ Fig3_D<-toPlot.3d%>%
 ## Fig3 E/F
 
 ## draw Fig3 E
-toPlot.3e<-dfTrait2CapPot_TI%>%
+Fig3_E<-dfTrait2CapPot_TI%>%
   dplyr::select(.,1,3,4)%>%
-  dplyr::mutate(New=cut(TI,breaks = quantile(TI,probs = seq(0,1,length.out = 10+1)),include.lowest=T))%>%
-  dplyr::mutate(Group_ID=c(rep(1,7),rep(2,7),rep(3,7),rep(4,7),rep(5,7),
-                           rep(6,7),rep(7,7),rep(8,7),rep(9,7),rep(10,7)))%>%
-  dplyr::group_by(Group_ID)%>%
-  dplyr::summarise(TI_Mean=mean(TI),Y_Mean=mean(numAsPot),
-                   Y_se=sd(numAsPot)/sqrt(length(TI)),
-                   Y_Max=Y_Mean+Y_se,Y_Min=Y_Mean-Y_se)
-
-Fig3_E<- toPlot.3e%>%
-  ggplot(aes(x=TI_Mean,y=Y_Mean))+
-  geom_errorbar(aes(ymin=Y_Min,ymax=Y_Max),width=.04)+
-  geom_point(color="#00BFC4",size=2)+
-  xlab("Mean trait importance     ")+
-  ylab("Mean number of diversifier")+
-  scale_y_continuous(limits = c(0,105))+
-  scale_x_continuous(breaks = seq(0,1,0.2))+
-  annotate("text",x=.5,y=90,parse = TRUE,label= "rho ~ ' = -0.30,' ~ italic(P) < 0.02")
+  ggplot(aes(x=TI,y=numAsPot))+
+  geom_point(color="#00BFC4",size=1.5)+
+  geom_smooth(method="lm",se = F,color="grey")+
+  xlab("Trait importance    ")+
+  ylab("Number of diversifier")+
+  scale_x_log10()+
+  annotate("text",x=0.04,y=145,parse = TRUE,label= "rho ~ ' = -0.30,'")+
+  annotate("text",x=0.04,y=130,parse = TRUE,label= "~ italic(P) < 0.02")
 
 ## draw Fig3 F
 nGene.pot.lowTi <- dfTrait2CapPot_TI %>%
@@ -220,10 +203,10 @@ nGene.pot.highTi <- dfTrait2CapPot_TI %>%
   getElement("numAsPot")
 wilcox.test(nGene.pot.lowTi,nGene.pot.highTi); ## P = 0.0031
 toPlot.3f <- data.frame(nGene = c(nGene.pot.lowTi,nGene.pot.highTi),
-                         type = ordered(
-                           rep(c("low","high"),
-                               c(length(nGene.pot.lowTi),length(nGene.pot.highTi)) ),
-                           levels=c("low","high")));
+                        type = ordered(
+                          rep(c("low","high"),
+                              c(length(nGene.pot.lowTi),length(nGene.pot.highTi)) ),
+                          levels=c("low","high")));
 
 Fig3_F<-toPlot.3f%>%
   dplyr::group_by(type)%>%
@@ -246,10 +229,10 @@ Fig3_F<-toPlot.3f%>%
 
 
 
-
 ## Fig3 G/I
 
 ##load("~/phenotypic_heterogeneity/Original_Data/Original.Rdata")
+Co_Gene <- union(Capacitor$Gene,Potentiator$Gene)%>%toupper()
 dfGene2Trait <- dfGene2Trait %>% mutate(Gene = toupper(Gene));
 df70Trait_Gene <- dfGene2Trait%>%
   dplyr::filter(Trait %in% Traits70)%>%
@@ -299,25 +282,17 @@ cor.test(Pot_DNDS$Mean_DNDS,Pot_DNDS$TI,method = "s")
 ## plot Fig. 3G/H/I/J based on the correlation above
 
 ##draw Fig3 G
-toPlot.3g <- Cap_DNDS %>%
-  dplyr::arrange(.,TI)%>%
-  mutate(Group_ID = cut(TI,
-                        breaks=quantile(TI,p=seq(0,1,length.out=11)),
-                        include.lowest=T)) %>%
-  dplyr::group_by(Group_ID) %>%
-  dplyr::summarise(TI_Mean=mean(TI),Y_Mean=mean(Mean_DNDS),
-                   Y_se=sd(Mean_DNDS)/sqrt(length(TI)),
-                   Y_Max=Y_Mean+Y_se,Y_Min=Y_Mean-Y_se)
+Fig3_G <- Cap_DNDS %>%
+  ggplot(aes(x=TI,y=Mean_DNDS))+
+  geom_point(color="#F8766D",size=1.5)+
+  geom_smooth(method="lm",se = F,color="grey")+
+  xlab("Trait importance     ")+
+  ylab("dN/dS of stabilizer")+
+  scale_x_log10()+
+  annotate("text",x=0.04,y=0.1,parse = TRUE,label= "rho ~ ' = -0.11,'")+
+  annotate("text",x=0.04,y=0.09,parse = TRUE,label= "~ italic(P) == 0.39")
 
-Fig3_G <- toPlot.3g %>%
-  ggplot(aes(x=TI_Mean,y=Y_Mean))+
-  geom_errorbar(aes(ymin=Y_Min,ymax=Y_Max),width=.04)+
-  geom_point(color="#F8766D",size=2)+
-  xlab("Mean trait importance     ")+
-  ylab("Mean dN/dS of stabilizer")+
-  scale_x_continuous(breaks = seq(0,1,0.2))+
-  scale_y_continuous(limits = c(0.05,0.1))+
-  annotate("text",x=.47,y=0.095,parse = TRUE,label= "rho ~ ' = -0.11,' ~ italic(P) == 0.39")
+
 
 ## draw Fig3 H
 ## compare top/bottom 20 traits
@@ -330,10 +305,10 @@ dnds.cap.highTi <- Cap_DNDS %>%
   getElement("Mean_DNDS")
 wilcox.test(dnds.cap.lowTi,dnds.cap.highTi); ## P = 0.43
 toPlot.3h <- data.frame(dnds = c(dnds.cap.lowTi,dnds.cap.highTi),
-                         type = ordered(
-                           rep(c("low","high"),
-                               c(length(dnds.cap.lowTi),length(dnds.cap.highTi)) ),
-                           levels=c("low","high")))
+                        type = ordered(
+                          rep(c("low","high"),
+                              c(length(dnds.cap.lowTi),length(dnds.cap.highTi)) ),
+                          levels=c("low","high")))
 Fig3_H<-toPlot.3h%>%
   dplyr::group_by(type)%>%
   dplyr::summarise(meanDnds=mean(dnds),sdDnds=sd(dnds))%>%
@@ -355,26 +330,17 @@ Fig3_H<-toPlot.3h%>%
 
 ##draw Fig3 I
 
-toPlot.3i <- Pot_DNDS%>%
-  dplyr::arrange(.,TI)%>%
-  mutate(Group_ID = cut(TI,
-                        breaks=quantile(TI,p=seq(0,1,length.out=11)),
-                        include.lowest=T)) %>%
-  dplyr::group_by(Group_ID)%>%
-  dplyr::summarise(TI_Mean=mean(TI),Y_Mean=mean(Mean_DNDS),
-                   Y_se=sd(Mean_DNDS)/sqrt(length(TI)),
-                   Y_Max=Y_Mean+Y_se,Y_Min=Y_Mean-Y_se)
 
-Fig3_I <- toPlot.3i %>%
-  ggplot(aes(x=TI_Mean,y=Y_Mean))+
-  geom_errorbar(aes(ymin=Y_Min,ymax=Y_Max),width=.04)+
-  geom_point(color="#00BFC4",size=2)+
-  xlab("Mean trait importance     ")+
-  ylab("Mean dN/dS of diversifier")+
+Fig3_I <- Pot_DNDS %>%
+  ggplot(aes(x=TI,y=Mean_DNDS))+
+  geom_point(color="#00BFC4",size=1.5)+
+  geom_smooth(method="lm",se = F,color="grey")+
+  xlab("trait importance     ")+
+  ylab(" dN/dS of diversifier")+
+  scale_x_log10()+
   scale_y_continuous(limits=c(0.04,0.09))+
-  scale_x_continuous(breaks = seq(0,1,0.2))+
-  annotate("text",x=.47,y=0.085,parse = TRUE,label="rho ~' = -0.26,' ~ italic(P) < 0.04")
-
+  annotate("text",x=0.05,y=0.085,parse = TRUE,label="rho ~' = -0.26,'")+
+  annotate("text",x=0.05,y=0.080,parse = TRUE,label="~ italic(P) < 0.04")
 
 ## draw Fig3 J
 ## compare top/bottom 20 traits
@@ -386,10 +352,10 @@ dnds.pot.highTi <- Pot_DNDS %>%
   getElement("Mean_DNDS")
 wilcox.test(dnds.pot.lowTi,dnds.pot.highTi)## P = 0.0067
 toPlot.3j <- data.frame(dnds = c(dnds.pot.lowTi,dnds.pot.highTi),
-                         type = ordered(
-                           rep(c("low","high"),
-                               c(length(dnds.cap.lowTi),length(dnds.cap.highTi)) ),
-                           levels=c("low","high")))
+                        type = ordered(
+                          rep(c("low","high"),
+                              c(length(dnds.cap.lowTi),length(dnds.cap.highTi)) ),
+                          levels=c("low","high")))
 Fig3_J <-toPlot.3j%>%
   dplyr::group_by(type)%>%
   dplyr::summarise(meanDnds=mean(dnds),sdDnds=sd(dnds))%>%
@@ -411,10 +377,8 @@ Fig3_J <-toPlot.3j%>%
 
 
 ##Draw  DATA save in Figure_3.Rdata
-save(df.dNdS,Fit_data,toPlot.3A,toPlot.3b,
-     toPlot.3c,toPlot.3d,toPlot.3e,toPlot.3f,
-     toPlot.3g,toPlot.3h,toPlot.3i,toPlot.3j,
-     file = "~/phenotypic_heterogeneity/Fig_3_Results/Figure_3.Rdata")
+save(df.dNdS,Fit_data,dfTrait2CapPot_TI,Cap_DNDS,Pot_DNDS,
+     file = "~/12_5/Figure_3.Rdata")
 
 
 
